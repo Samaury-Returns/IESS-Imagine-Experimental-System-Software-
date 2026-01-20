@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Mini Web OS</title>
+<style>
+  :root{ --bg: url('https://picsum.photos/1280/720'); }
+  body { margin:0; font-family: Arial, sans-serif; overflow:hidden; background:var(--bg) center/cover no-repeat; }
+  #desktop { height:100vh; padding:10px; display:flex; flex-wrap:wrap; gap:16px; align-content:flex-start; }
+  #taskbar { position:fixed; bottom:0; left:0; right:0; height:42px; background:rgba(0,0,0,.85); display:flex; align-items:center; gap:6px; padding:4px; }
+  #startMenu { position:fixed; bottom:46px; left:4px; background:#222; border:1px solid #555; display:none; color:white; }
+  .startItem { padding:8px; cursor:pointer; }
+  .startItem:hover { background:#444; }
+  .icon { width:72px; height:72px; text-align:center; cursor:pointer; color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .window { position:absolute; top:80px; left:80px; width:360px; background:#222; border:1px solid #555; animation:pop .2s; }
+  .title { background:#444; padding:4px; cursor:move; display:flex; justify-content:space-between; color:white; }
+  .content { padding:8px; color:white; }
+  .controls button{ margin-left:4px; }
+  canvas{ border:1px solid #555; background:white; }
+  .grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .logo-history {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  background: #1e1e1e;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.logo-entry {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #444;
+  padding-bottom: 10px;
+}
+
+.logo-entry img {
+  max-width: 220px;
+  display: block;
+  margin: 8px 0;
+  background: white;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.window .content {
+  height: 360px;          /* fixed app area */
+  overflow: hidden;       /* scrolling happens inside app */
+}
+
+
+/* ---------- APP SCROLL CONTAINER ---------- */
+.app-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+/* Optional: subtle dark scrollbar */
+.app-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.app-scroll::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+.app-scroll::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 6px;
+}
+.app-scroll::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+
+  @keyframes pop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+</style>
+</head>
+<body>
+<div id="login" style="position:fixed;inset:0;background:black;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10000">
+  <h2>ImagineOS</h2>
+  <input id="user" placeholder="Username" style="margin:4px">
+  <input id="pass" type="password" placeholder="Password" style="margin:4px">
+  <button onclick="login()">Login</button>
+  <button onclick="signup()">Sign up</button>
+</div>
+<div id="desktop" style="display:none">
+  <div class="icon" onclick="openCalc()">🧮<br>Calc</div>
+  <div class="icon" onclick="openMedia()">🎵<br>Audio</div>
+  <div class="icon" onclick="openVideo()">🎬<br>Video</div>
+  <div class="icon" onclick="openPaint()">🎨<br>Paint</div>
+  <div class="icon" onclick="openGame()"><img src="—Pngtree—hand drawn style cartoon apple_5756984.png" style="width:40px;height:40px;object-fit:contain"><br>Fruits</div>
+  <div class="icon" onclick="openNotepad()">📝<br>Notepad</div>
+  <div class="icon" onclick="openExplorer()">📁<br>Files</div>
+  <div class="icon" onclick="openSettings()">⚙️<br>Settings</div>
+  <div class="icon" onclick="openInfo()">ℹ️<br>Info</div>
+  <div class="icon" onclick="openUniverso()">🌌<br>Universó</div>
+  <div class="icon" onclick="openWiki()">📖<br>Wiki</div>
+  <div class="icon" onclick="openLogoWiki()">🟥<br>Logos</div>
+</div>
+
+<div id="taskbar">
+  <button onclick="shutdown()">⏻</button>
+  <button onclick="restart()">⟳</button>
+  <button onclick="toggleStart()">Start</button>
+  <div id="clock" style="margin-left:auto;color:white;font-size:14px;padding-right:8px"></div>
+</div>
+
+<div id="startMenu">
+  <div class="startItem" onclick="openCalc()">Calculator</div>
+  <div class="startItem" onclick="openMedia()">Audio Player</div>
+  <div class="startItem" onclick="openVideo()">Video Player</div>
+  <div class="startItem" onclick="openPaint()">Paint</div>
+  <div class="startItem" onclick="openGame()">Fruit Clicker</div>
+  <div class="startItem" onclick="openNotepad()">Notepad</div>
+  <div class="startItem" onclick="openExplorer()">File Explorer</div>
+  <div class="startItem" onclick="openSettings()">Settings</div>
+  <div class="startItem" onclick="openInfo()">Info</div></div>
+  <div class="startItem" onclick="openUniverso()">Save the Universó</div>
+  <div class="startItem" onclick="openWiki()">Wikipedia</div>
+  <div class="startItem" onclick="openLogoWiki()">Logo History</div>
+</div>
+
+<script>
+const loginScreen = document.getElementById('login');
+const desktopEl = document.getElementById('desktop');
+let z=1;
+
+// ---------- START MENU ----------
+function toggleStart(){startMenu.style.display=startMenu.style.display==='block'?'none':'block';}
+
+// ---------- WINDOW SYSTEM ----------
+function makeWindow(title, html){
+  const w=document.createElement('div');
+  w.className='window'; w.style.zIndex=++z;
+  w.innerHTML=`<div class='title'><span>${title}</span><span class='controls'>
+    <button onclick='minWin(this)'>_</button>
+    <button onclick='maxWin(this)'>▢</button>
+    <button onclick='this.closest(".window").remove()'>X</button>
+  </span></div><div class='content'>${html}</div>`;
+  desktop.appendChild(w);
+
+  const bar=w.querySelector('.title'); let ox,oy;
+  bar.onmousedown=e=>{ox=e.offsetX;oy=e.offsetY;document.onmousemove=ev=>{w.style.left=ev.pageX-ox+'px';w.style.top=ev.pageY-oy+'px';};document.onmouseup=()=>document.onmousemove=null;};
+}
+function minWin(b){ b.closest('.window').style.display='none'; }
+function maxWin(b){ const w=b.closest('.window'); w.style.top='0'; w.style.left='0'; w.style.width='100%'; w.style.height='calc(100% - 42px)'; }
+
+// ---------- CALCULATOR ----------
+function openCalc(){ makeWindow('Calculator',`
+<input id='calc' style='width:100%;font-size:20px;text-align:right' readonly><br><br>
+<div class='grid'>
+<button onclick="clrCalc()">C</button><button onclick="press('(')">(</button><button onclick="press(')')">)</button><button onclick="press('/')">÷</button>
+<button onclick="press('7')">7</button><button onclick="press('8')">8</button><button onclick="press('9')">9</button><button onclick="press('*')">×</button>
+<button onclick="press('4')">4</button><button onclick="press('5')">5</button><button onclick="press('6')">6</button><button onclick="press('-')">−</button>
+<button onclick="press('1')">1</button><button onclick="press('2')">2</button><button onclick="press('3')">3</button><button onclick="press('+')">+</button>
+<button onclick="press('0')">0</button><button onclick="press('.')">.</button><button style='grid-column:span 2' onclick="press('=')">=</button>
+</div>`);} 
+function press(v){
+  const c = document.querySelector('.window:last-of-type #calc');
+  if(!c) return;
+  if(v==='='){
+    try{ c.value = eval(c.value || 0); }
+    catch{ c.value = 'Error'; }
+  } else {
+    c.value += v;
+  }
+}
+function clrCalc(){
+  const c = document.querySelector('.window:last-of-type #calc');
+  if(c) c.value='';
+}
+
+function clrCalc(){calc.value='';}
+
+// ---------- PAINT ----------
+let paintColor='#000',brush=4;
+function openPaint(){ makeWindow('Paint',`
+Color <input type='color' id='col'> Brush <input type='range' min='1' max='20' value='4' id='br'><br><br>
+<canvas id='p' width='300' height='200'></canvas><br><br>
+<button onclick='savePaint()'>Save</button>
+<input type='file' id='openImg'>
+<button onclick='pick=true'>Eyedropper</button>
+<button onclick='clearPaint()'>Clear</button>`);
+
+const canvas = document.getElementById('p');
+const ctx = canvas.getContext('2d');
+let draw=false; window.pick=false;
+
+col.oninput=e=>paintColor=e.target.value;
+br.oninput=e=>brush=e.target.value;
+
+canvas.onmousedown=e=>{
+  if(pick){
+    const d=ctx.getImageData(e.offsetX,e.offsetY,1,1).data;
+    paintColor=`rgb(${d[0]},${d[1]},${d[2]})`;
+    pick=false;
+  } else draw=true;
+};
+canvas.onmouseup=()=>draw=false;
+canvas.onmousemove=e=>{ if(draw){ ctx.fillStyle=paintColor; ctx.fillRect(e.offsetX,e.offsetY,brush,brush);} };
+
+document.getElementById('openImg').onchange=e=>{
+  const file=e.target.files[0];
+  if(!file) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    img.src=ev.target.result;
+  };
+  r.readAsDataURL(file);
+};
+}
+
+function clearPaint(){p.getContext('2d').clearRect(0,0,300,200);}
+function savePaint(){
+  const data=p.toDataURL();
+  const files=JSON.parse(localStorage.getItem('files')||'[]');
+  files.push({name:'paint-'+Date.now()+'.png',data});
+  localStorage.setItem('files',JSON.stringify(files));
+  const a=document.createElement('a'); a.href=data; a.download='paint.png'; a.click();
+}
+
+function savePaintOLD(){ const a=document.createElement('a'); a.href=p.toDataURL(); a.download='paint.png'; a.click(); }
+function openPaintFile(i){ const r=new FileReader(); r.onload=e=>{const img=new Image(); img.onload=()=>p.getContext('2d').drawImage(img,0,0); img.src=e.target.result;}; r.readAsDataURL(i.files[0]); }
+
+// ---------- MEDIA PLAYER ----------
+function openMedia(){
+  makeWindow('Audio Player',`
+    <audio id='player' controls style='width:100%'></audio>
+    <div id='drop' style='margin-top:10px;padding:20px;border:2px dashed #666;text-align:center'>Drop audio file here</div>
+  `);
+  const d=document.getElementById('drop');
+  const p=document.getElementById('player');
+  d.ondragover=e=>e.preventDefault();
+  d.ondrop=e=>{e.preventDefault(); p.src=URL.createObjectURL(e.dataTransfer.files[0]);};
+}
+
+// ---------- VIDEO PLAYER ----------
+function openVideo(){
+  makeWindow('Video Player',`
+    <video id='vid' controls style='width:100%;max-height:240px;background:black'></video>
+    <div id='vdrop' style='margin-top:10px;padding:20px;border:2px dashed #666;text-align:center'>Drop video file here</div>
+  `);
+  const d=document.getElementById('vdrop');
+  const v=document.getElementById('vid');
+  d.ondragover=e=>e.preventDefault();
+  d.ondrop=e=>{e.preventDefault(); v.src=URL.createObjectURL(e.dataTransfer.files[0]);};
+}
+
+// ---------- FRUIT CLICKER ----------
+let score=0,power=1,auto=0;
+function openGame(){
+  makeWindow('Fruit Clicker',`
+    <p>Score: <span id='s'>0</span></p>
+    <p>Power: <span id='pw'>1</span></p>
+    <button style='font-size:26px' onclick='clickFruit()'><img src="—Pngtree—hand drawn style cartoon apple_5756984.png" style="width:40px;height:40px;object-fit:contain"></button><br><br>
+    <button onclick='buyPower()'>🍊 Power +1 (10)</button><br>
+    <button onclick='buyAuto()'>🍌 Auto +1 (25)</button>
+  `);
+  setInterval(()=>{score+=auto;updateGame();},1000);
+}
+function clickFruit(){score+=power;updateGame();}
+function buyPower(){if(score>=10){score-=10;power++;updateGame();}}
+function buyAuto(){if(score>=25){score-=25;auto++;updateGame();}}
+function updateGame(){s.innerText=score;pw.innerText=power;}
+
+// ---------- INFO ----------
+function openInfo(){
+  makeWindow('About ImagineOS',`
+    <h3>ImagineOS</h3>
+    <p>Created by S. A. Maury</p>
+    <p>Version 1.0</p>
+  `);
+}
+
+// ---------- NOTEPAD ----------
+function openNotepad(){
+  makeWindow('Notepad',`
+    <textarea id="note" style="width:100%;height:200px"></textarea><br><br>
+    <button onclick="saveNote()">Save</button>
+    <button onclick="openNote()">Open</button>
+    <input type="file" id="openNoteFile" accept=".txt" hidden>
+  `);
+
+  document.getElementById('openNoteFile').onchange = e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const r = new FileReader();
+    r.onload = () => {
+      document.getElementById('note').value = r.result;
+    };
+    r.readAsText(file);
+  };
+}
+
+function openNote(){
+  document.getElementById('openNoteFile').click();
+}
+
+
+// ---------- FILE EXPLORER ----------
+function openExplorer(){
+  const files = JSON.parse(localStorage.getItem('files')||'[]');
+  makeWindow('File Explorer', files.length ? files.map((f,i)=>{
+    const icon = f.type === 'text' ? '📝' : '🖼️';
+    return `<div style='cursor:pointer' onclick="openFile(${i})">${icon} ${f.name}</div>`;
+  }).join('') : '<p>No files</p>');
+}
+  makeWindow('File Explorer', files.length? files.map((f,i)=>`<div style='cursor:pointer' onclick="openFile(${i})">🖼️ ${f.name}</div>`).join(''):'<p>No files</p>');
+function openFile(i){
+  const f=JSON.parse(localStorage.getItem('files'))[i];
+  makeWindow(f.name,`<img src='${f.data}' style='width:100%'>`);
+}
+
+// ---------- BOOT / SHUTDOWN ----------
+function shutdown(){ document.body.innerHTML=`<div style='background:black;color:white;height:100vh;display:flex;align-items:center;justify-content:center;font-size:24px'>Shutting down...</div>`; }
+function restart(){ location.reload(); }
+window.onload=()=>{
+  updateClock();
+  setInterval(updateClock,1000);
+  const savedBg=localStorage.getItem('bg'); if(savedBg) setBg(savedBg);
+};
+
+function login(){
+  const users = JSON.parse(localStorage.getItem('accounts') || '{}');
+
+  if(users[user.value] === pass.value){
+    localStorage.setItem('currentUser', user.value);
+    transitionIn();
+  } else {
+    alert('Invalid login');
+  }
+}
+
+function signup(){
+  const users = JSON.parse(localStorage.getItem('accounts') || '{}');
+
+  if(users[user.value]){
+    alert('User already exists');
+    return;
+  }
+
+  users[user.value] = pass.value;
+  localStorage.setItem('accounts', JSON.stringify(users));
+  alert('Account created');
+}
+
+function transitionIn(){
+  loginScreen.style.opacity = 1;
+  const t = setInterval(()=>{
+    loginScreen.style.opacity -= 0.05;
+    if(loginScreen.style.opacity <= 0){
+      clearInterval(t);
+      loginScreen.style.display = 'none';
+      desktopEl.style.display = 'flex';
+    }
+  },20);
+}
+
+
+// ---------- SETTINGS ----------
+function openSettings(){ makeWindow('Settings',`
+<h3>Background</h3>
+<button onclick="setBg('https://picsum.photos/1280/720')">Default</button>
+<input type='file' accept='image/*' onchange='customBg(this)'>`); }
+
+function setBg(url){ document.documentElement.style.setProperty('--bg',`url(${url})`); localStorage.setItem('bg',url); }
+function customBg(i){ const r=new FileReader(); r.onload=e=>setBg(e.target.result); r.readAsDataURL(i.files[0]); }
+
+// ---------- RESTORE SETTINGS ----------
+const savedBg=localStorage.getItem('bg'); if(savedBg) setBg(savedBg);
+
+// ---------- CLOCK (Colombia Time) ----------
+function updateClock(){
+  const now = new Date().toLocaleString('es-CO', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  const c = document.getElementById('clock');
+  if(c) c.textContent = now;
+}
+
+// ---------- SAVE THE UNIVERSÓ ----------
+function openUniverso(){
+  makeWindow("Save the Universó", `
+  <div style="text-align:center;max-height:360px;overflow-y:auto;padding-right:6px">
+      <h2>🌌 SAVE THE UNIVERSÓ 🌌</h2>
+      <p>One click closer to cosmic responsibility.</p>
+
+      ${planet("🌍 Earth","earth","The_Blue_Marble,_AS17-148-22727.jpg")}
+      ${planet("♀️ Venus","venus","20150504075547Venus-real_color.jpg")}
+      ${planet("♂️ Mars","mars","Mars_-_August_30_2021_-_Flickr_-_Kevin_M._Gill.png")}
+      ${planet("🪐 Saturn","saturn","Saturn_during_Equinox.jpg", true)}
+      ${planet("🌀 Uranus","uranus","Uranus_Voyager2_color_calibrated.png")}
+      ${planet("🌌 Milky Way","milkyway","9rsiRSbhwqjzecwKFYx6Ci.jpg", false, true)}
+
+      <p id="universeStatus" style="opacity:.8;margin-top:10px"></p>
+    </div>
+  `);
+}
+
+function planet(title,id,src,ring=false,wide=false){
+  return `
+    <div style="margin:18px 0">
+      <h3>${title}</h3>
+      <img id="${id}" src="${src}"
+        style="
+          width:${wide ? 300 : 200}px;
+          border-radius:${wide ? "10px" : ring ? "20%" : "50%"};
+          box-shadow:0 0 15px rgba(255,255,255,.4)
+        ">
+      <br>
+      <button onclick="saveUniverse('${id}','${id}')"
+        style="margin-top:6px;padding:6px 14px;border-radius:8px">
+        Save
+      </button>
+    </div>
+  `;
+}
+
+function saveUniverse(id,name){
+  const img=document.getElementById(id);
+  if(!img) return;
+
+  const data = img.src;
+
+  // save to File Explorer
+  const files = JSON.parse(localStorage.getItem("files") || "[]");
+  files.push({
+    name: name + "_saved.png",
+    type: "image",
+    data
+  });
+  localStorage.setItem("files", JSON.stringify(files));
+
+  // normal download
+  const a=document.createElement("a");
+  a.href=data;
+  a.download=name+"_saved.png";
+  a.click();
+
+  document.getElementById("universeStatus").innerText =
+    "✅ " + name.replace("_"," ").toUpperCase() +
+    " saved. Universe stability +10.";
+}
+
+// ---------- WIKIPEDIA READER ----------
+function openWiki(){
+  makeWindow("Wikipedia – BFDI", `
+    <iframe
+      src="https://simple.wikipedia.org/wiki/Battle_for_Dream_Island"
+      style="
+        width:100%;
+        height:360px;
+        border:none;
+        background:white
+      ">
+    </iframe>
+  `);
+}
+
+// ---------- LOGO HISTORY ----------
+function openLogoWiki(){
+  makeWindow("Logo History – YouTube", `
+<div class="app-scroll">
+  <div class="logo-history">
+  <h2>Logo History — YouTube</h2>
+  <div class="logo-entry">
+    <h3>2005–2011</h3>
+    <img src="logos/youtube_2005.png">
+    <p>The original YouTube logo with the classic TV-style design.</p>
+  </div>
+
+  <div class="logo-entry">
+    <h3>2011–2013</h3>
+    <img src="logos/youtube_2011.png">
+    <p>Simplified colors and flatter appearance.</p>
+  </div>
+
+  <div class="logo-entry">
+    <h3>2013–2015</h3>
+    <img src="logos/youtube_2013.png">
+    <p>Refined typography and cleaner layout.</p>
+  </div>
+
+  <div class="logo-entry">
+    <h3>2015–2017</h3>
+    <img src="logos/youtube_2015.png">
+    <p>Transition phase toward the modern icon.</p>
+  </div>
+
+  <div class="logo-entry">
+    <h3>2017–Present</h3>
+    <img src="logos/youtube_2017.png">
+    <p>The modern red play-button logo.</p>
+  </div>
+  <div class="logo-entry">
+    <h3>2024–Present</h3>
+    <img src="logos/youtube_2024.png">
+    <p>Less noticeable, but slight changes on the colors.</p>
+  </div>
+</div>
+</div>
+
+  
+
+  `);
+}
+
+</script>
+</body>
+</html>
