@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Save the Universó</title>
+  <style>
+    body {
+      background: black;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    .planet {
+      margin: 35px 0;
+    }
+    img {
+      width: 260px;
+      border-radius: 50%;
+      box-shadow: 0 0 25px rgba(255,255,255,0.4);
+    }
+    .wide {
+      width: 420px;
+      border-radius: 15px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 12px 25px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      background: #2ecc71;
+    }
+    button:hover {
+      background: #27ae60;
+    }
+    #status {
+      margin-top: 25px;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🌌 SAVE THE UNIVERSÓ 🌌</h1>
+  <p>One click closer to cosmic responsibility.</p>
+
+  <div class="planet">
+    <h2>🌍 Earth</h2>
+    <img id="earth" src="The_Blue_Marble,_AS17-148-22727.jpg">
+    <br><button onclick="save('earth','earth')">Save</button>
+  </div>
+
+  <div class="planet">
+    <h2>♀️ Venus</h2>
+    <img id="venus" src="20150504075547Venus-real_color.jpg">
+    <br><button onclick="save('venus','venus')">Save</button>
+  </div>
+
+  <div class="planet">
+    <h2>♂️ Mars</h2>
+    <img id="mars" src="Mars_-_August_30_2021_-_Flickr_-_Kevin_M._Gill.png">
+    <br><button onclick="save('mars','mars')">Save</button>
+  </div>
+
+  <div class="planet">
+    <h2>🪐 Saturn</h2>
+    <img id="saturn" src="Saturn_during_Equinox.jpg" style="border-radius:20%">
+    <br><button onclick="save('saturn','saturn')">Save</button>
+  </div>
+
+  <div class="planet">
+    <h2>🌀 Uranus</h2>
+    <img id="uranus" src="Uranus_Voyager2_color_calibrated.png">
+    <br><button onclick="save('uranus','uranus')">Save</button>
+  </div>
+
+  <div class="planet">
+    <h2>🌌 Milky Way</h2>
+    <img id="milkyway" class="wide" src="9rsiRSbhwqjzecwKFYx6Ci.jpg">
+    <br><button onclick="save('milkyway','milky_way')">Save Galaxy</button>
+  </div>
+
+  <p id="status"></p>
+
+  <script>
+    function save(id, name) {
+      const a = document.createElement("a");
+      a.href = document.getElementById(id).src;
+      a.download = name + "_saved.png";
+      a.click();
+      document.getElementById("status").innerText =
+        "✅ " + name.replace("_"," ").toUpperCase() + " saved. Universe stability +10.";
+    }
+  </script>
+
+</body>
+</html>
